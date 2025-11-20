@@ -1,0 +1,78 @@
+##############################
+# OS / IDE FILES
+##############################
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
+*.swo
+
+##############################
+# PYTHON ARTIFACTS
+##############################
+__pycache__/
+*.pyc
+*.pyo
+
+##############################
+# C/C++ / CUDA BUILD ARTIFACTS
+##############################
+*.o
+*.obj
+*.out
+*.so
+*.a
+*.x
+
+# NVCC intermediates
+*.cu.o
+*.cudafe*
+*.ii
+*.i
+*.fatbin
+*.ptx
+*.cubin
+
+##############################
+# GENERATED BINARIES
+##############################
+# GPU lab creates .run_bench.x and .run_verifier.x
+*.run_bench.x
+*.run_verifier.x
+
+# Sometimes your Makefile dumps these into Obj-A/
+Obj-A/*.o
+Obj-A/*.x
+Obj-A/*.cu.o
+
+##############################
+# GENERATED CSV RESULTS
+##############################
+*.csv
+Obj-A/*.csv
+
+
+##############################
+# LOGS
+##############################
+*.log
+*.stderr
+*.stdout
+*.err
+*.out
+
+# Output aggregation file
+out.csv
+
+##############################
+# SLURM OUTPUTS
+##############################
+slurm-*.out
+slurm-*.err
+
+##############################
+# BACKUPS / TEMP
+##############################
+*~
+*.bak
+*.tmp
