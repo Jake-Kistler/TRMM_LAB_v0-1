@@ -1,31 +1,13 @@
 #!/usr/bin/env bash
-#
-# This file runs the verifier code based on the configured vars.
-# You can modify this to sweep over rank sizes or other parameters.
-#
-# - richard.m.veras@ou.edu
 
-# Turn on command echo for debugging 
-set -x
+MIN=${1:-32}
+MAX=${2:-256}
+STEP=${3:-32}
+OBJ=./Obj-A
 
-source op_dispatch_vars.sh
+echo "Running verifier locally (WSL MPICH)"
 
-
-DIRECTORY=$1
-MIN=$2
-MAX=$3
-STEP=$4
-NUMRANKS=$5
-
-TIME=$(date +%F_%H%M_%S)
-HOST=$(hostname -f)
-
-
-# run the variants
-for OP in $(ls $DIRECTORY/*run_verifier.x);
-do
-    RESULT_FILE=${OP}.${NUMRANKS}.${HOST}.${TIME}.verifier.csv
-    mpiexec -n ${NUMRANKS} ${OP} ${MIN} ${MAX} ${STEP} 1 1 ${RESULT_FILE}
-    cat ${RESULT_FILE}
+for X in $OBJ/*.run_verifier.x; do
+    echo "Verifier: $X"
+    mpiexec -n 1 $X $MIN $MAX $STEP 1 -3 "$X.verifier.csv"
 done
-

@@ -1,80 +1,28 @@
 #!/usr/bin/env bash
-#
-# This file builds the verifier code based on the configured vars.
-# You should not need to modify this.
-#
-# - richard.m.veras@ou.edu
+# Build TEST binaries locally under WSL + MPICH
 
-# Turn on command echo for debugging 
-set -x
+set -e
 
-source op_dispatch_vars.sh
+echo "Building test binaries (WSL Local Mode)"
 
-echo $OP_BASELINE_FILE
-echo $CC
-echo $CFLAGS
-echo $CC_HOST
-echo $CC_HOST_CFLAGS
+OBJ=./Obj-A
 
+mpicc -std=c99 -O2 -mavx2 -mfma -c verify_op.c -o verify_op.c.o
+mpicc -std=c99 -O2 -mavx2 -mfma -c baseline_op.c -o baseline_op.c.o
 
-DIRECTORY=$1
-echo $(ls $DIRECTORY)
+for SRC in $OBJ/*.c; do
+    CU="${SRC}.cu"
+    echo "Compiling CPU + CUDA for $SRC"
 
+    mpicc -c -DCOMPUTE_NAME=test \
+            $SRC -o "${SRC}.o"
 
-# NOTE: Should move these out
-COMPUTE_NAME_REF="baseline"
-DISTRIBUTED_ALLOCATE_NAME_REF="baseline_allocate"
-DISTRIBUTED_FREE_NAME_REF="baseline_free"
-DISTRIBUTE_DATA_NAME_REF="baseline_distribute"
-COLLECT_DATA_NAME_REF="baseline_collect"
+    nvcc -c $CU -o "${CU}.o"
 
-COMPUTE_NAME_TST="test"
-DISTRIBUTED_ALLOCATE_NAME_TST="test_allocate"
-DISTRIBUTED_FREE_NAME_TST="test_free"
-DISTRIBUTE_DATA_NAME_TST="test_distribute"
-COLLECT_DATA_NAME_TST="test_collect"
-
-TEST_RIG="verify_op.c"
-
-# Build the verifier code
-${CC_HOST} -std=c99 -c \
-    -DCOMPUTE_NAME_REF=${COMPUTE_NAME_REF} \
-    -DDISTRIBUTED_ALLOCATE_NAME_REF=${DISTRIBUTED_ALLOCATE_NAME_REF} \
-    -DDISTRIBUTED_FREE_NAME_REF=${DISTRIBUTED_FREE_NAME_REF} \
-    -DDISTRIBUTE_DATA_NAME_REF=${DISTRIBUTE_DATA_NAME_REF} \
-    -DCOLLECT_DATA_NAME_REF=${COLLECT_DATA_NAME_REF} \
-    -DCOMPUTE_NAME_TST=${COMPUTE_NAME_TST} \
-    -DDISTRIBUTED_ALLOCATE_NAME_TST=${DISTRIBUTED_ALLOCATE_NAME_TST} \
-    -DDISTRIBUTED_FREE_NAME_TST=${DISTRIBUTED_FREE_NAME_TST} \
-    -DDISTRIBUTE_DATA_NAME_TST=${DISTRIBUTE_DATA_NAME_TST} \
-    -DCOLLECT_DATA_NAME_TST=${COLLECT_DATA_NAME_TST} \
-    ${TEST_RIG} -o ${TEST_RIG}.o
-
-# Build the reference baseline
-${CC_HOST} -std=c99 -c \
-    -DCOMPUTE_NAME=${COMPUTE_NAME_REF} \
-    -DDISTRIBUTE_DATA_NAME=${DISTRIBUTE_DATA_NAME_REF} \
-    -DCOLLECT_DATA_NAME=${COLLECT_DATA_NAME_REF} \
-    -DDISTRIBUTED_ALLOCATE_NAME=${DISTRIBUTED_ALLOCATE_NAME_REF}\
-    -DDISTRIBUTED_FREE_NAME=${DISTRIBUTED_FREE_NAME_REF}\
-    ${OP_BASELINE_FILE} -o ${OP_BASELINE_FILE}.ref.o
-
-# Build the variants
-for OP in $(ls $DIRECTORY/*.c);
-do
-    # NOTE: Cuda files need to have the same name as the C file with a .cu appended to it.
-    OP_CUDA=${OP}.cu 
-    ${CC_HOST} $CFLAGS -c \
-	       -DCOMPUTE_NAME=${COMPUTE_NAME_TST} \
-	       -DDISTRIBUTE_DATA_NAME=${DISTRIBUTE_DATA_NAME_TST} \
-	       -DCOLLECT_DATA_NAME=${COLLECT_DATA_NAME_TST} \
-	       -DDISTRIBUTED_ALLOCATE_NAME=${DISTRIBUTED_ALLOCATE_NAME_TST}\
-	       -DDISTRIBUTED_FREE_NAME=${DISTRIBUTED_FREE_NAME_TST}\
-	       ${OP} -o ${OP}.o
-
-    ${CC} $CFLAGS -c ${OP_CUDA} -o ${OP_CUDA}.o
-
-    ${CC} ${CFLAGS} -ccbin=${CC_HOST} ${LDFLAGS} ${TEST_RIG}.o ${OP_BASELINE_FILE}.ref.o ${OP_CUDA}.o ${OP}.o -o ${OP}.run_verifier.x
-
+    nvcc -ccbin=mpicc -lstdc++ -lcudart -lm \
+         verify_op.c.o baseline_op.c.o \
+         "${CU}.o" "${SRC}.o" \
+         -o "${SRC}.run_verifier.x"
 done
 
+echo "Done building test binaries."
