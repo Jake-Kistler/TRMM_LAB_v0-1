@@ -1,48 +1,46 @@
-# Makefile for Objective B, Task T00: Loop Permutations
-# Assumes location: TRMM_FIN/CPU/Obj-B/T00/
+# Makefile for Objective B, Task T01: Split + Interchange loop variants
+# Location: TRMM_FIN/CPU/Obj-B/T01/
 
 CC = mpicc
 CFLAGS = -O3 -g -Wall -I../../
 LDFLAGS = -lm
 
-# The harness files in the CPU directory
 TIMER_SRC = ../../timer_op.c
 VERIFY_SRC = ../../verify_op.c
 BASELINE_SRC = ../../baseline_op.c
 
-# Loop permutations to test
 PERMS = ijp jip ipj pij jpi pji
 
-# Generate list of binary names
 BENCH_BINS = $(PERMS:%=bench_%)
 VERIFY_BINS = $(PERMS:%=verify_%)
-SRCS = $(PERMS:%=obj_b_t00_%.c)
+SRCS = $(PERMS:%=obj_b_t01_%.c)
 
 all: generate build verify
 
+# Generate C sources using the shared script in T00
+GEN_SCRIPT = ../T00/generate_split_loops.py
+
 generate: $(SRCS)
 
-$(SRCS): generate_loops.py
-	python3 generate_loops.py
-
-build: $(BENCH_BINS) $(VERIFY_BINS)
+$(SRCS): $(GEN_SCRIPT)
+	python3 $(GEN_SCRIPT)
 
 baseline_op.o: $(BASELINE_SRC)
 	$(CC) $(CFLAGS) -c $(BASELINE_SRC) -o baseline_op.o
 
 BENCH_FLAGS = \
-	-DCOMPUTE_NAME_TST=tuned_$* \
+	-DCOMPUTE_NAME_TST=tuned_t01_$* \
 	-DDISTRIBUTED_ALLOCATE_NAME_TST=baseline_allocate \
 	-DDISTRIBUTE_DATA_NAME_TST=baseline_distribute \
 	-DCOLLECT_DATA_NAME_TST=baseline_collect \
 	-DDISTRIBUTED_FREE_NAME_TST=baseline_free \
-	-DCOMPUTE_NAME=tuned_$*
+	-DCOMPUTE_NAME=tuned_t01_$*
 
-bench_%: obj_b_t00_%.c $(TIMER_SRC) baseline_op.o
+bench_%: obj_b_t01_%.c $(TIMER_SRC) baseline_op.o
 	$(CC) $(CFLAGS) $(BENCH_FLAGS) -o $@ $(TIMER_SRC) $< baseline_op.o $(LDFLAGS)
 
 VERIFY_FLAGS = \
-	-DCOMPUTE_NAME_TST=tuned_$* \
+	-DCOMPUTE_NAME_TST=tuned_t01_$* \
 	-DCOMPUTE_NAME_REF=baseline \
 	-DDISTRIBUTED_ALLOCATE_NAME_TST=baseline_allocate \
 	-DDISTRIBUTED_ALLOCATE_NAME_REF=baseline_allocate \
@@ -52,10 +50,12 @@ VERIFY_FLAGS = \
 	-DCOLLECT_DATA_NAME_REF=baseline_collect \
 	-DDISTRIBUTED_FREE_NAME_TST=baseline_free \
 	-DDISTRIBUTED_FREE_NAME_REF=baseline_free \
-	-DCOMPUTE_NAME=tuned_$*
+	-DCOMPUTE_NAME=tuned_t01_$*
 
-verify_%: obj_b_t00_%.c $(VERIFY_SRC) baseline_op.o
+verify_%: obj_b_t01_%.c $(VERIFY_SRC) baseline_op.o
 	$(CC) $(CFLAGS) $(VERIFY_FLAGS) -o $@ $(VERIFY_SRC) $< baseline_op.o $(LDFLAGS)
+
+build: $(BENCH_BINS) $(VERIFY_BINS)
 
 verify: $(VERIFY_BINS)
 	@echo "--- Running Verification ---"
@@ -79,11 +79,7 @@ results.csv: $(BENCH_BINS)
 
 run_bench: results.csv
 
-plot: results.csv plot_t00.py
-	python3 plot_t00.py
-	@echo "Plot saved to loop_comparison.png"
-
 clean:
-	rm -f bench_* verify_* obj_b_t00_*.c baseline_op.o results.csv loop_comparison.png
+	rm -f bench_* verify_* obj_b_t01_*.c baseline_op.o results.csv
 
-.PHONY: all generate build verify run_bench plot clean
+.PHONY: all generate build verify run_bench clean
